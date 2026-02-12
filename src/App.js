@@ -1,39 +1,46 @@
-import { useState , useEffect} from "react";
-import { createClient } from "@supabase/supabase-js";
-
-
+import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 function App() {
-  
-  const [authError, setAuthError] = useState(null);
-  const [authSuccess, setAuthSuccess] = useState(false);
-  const [verifying, setVerifying] = useState(true);
+  const [session, setSession] = useState([]);
+ 
 
   useEffect(() => {
-    // Check if we have token_hash in URL (magic link callback)
-    const params = new URLSearchParams(window.location.search);
-    const token_hash = params.get("token_hash");
-    const type = params.get("type");
 
-    if (token_hash) {
-      supabase.auth.verifyOtp({
-        token_hash,
-        type: type || "email",
-      }).then(({ error }) => {
-        if (error) {
-          setAuthError(error.message);
-        } else {
-          setAuthSuccess(true);
-          // Clear URL params
-          window.history.replaceState({}, document.title, "/");
-        }
-        setVerifying(false);
-      });
-    } else {
-      setVerifying(false);
-    }
+    
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+// sign in function
+const signIn = async () => {
+  await supabase.auth.signInWithOAuth({
+    provider: "google"
+  })
+}
+
+// sign out function
+
+const signOut = async () => {
+  const { error } = supabase.auth.signOut();
+}
+
+if(!session){
   
+}
+
+
   return (
     <div className="w-full flex h-screen justify-center items-center p-4">
       <div className="border-[1px] border-gray-500 max-w-6xl w-full min-h-[600px] rounded-lg">
@@ -43,7 +50,7 @@ function App() {
             <p className="text-gray-300">signed in as name... </p>
             <p className="text-gray-300 italic text-sm">3 users online</p>
           </div>
-          <button className="bg-gray-800 text-white font-semibold py-2 px-4 rounded m-2 sm:mr-4 ">
+          <button onClick={signOut} className="bg-gray-800 text-white font-semibold py-2 px-4 rounded m-2 sm:mr-4 ">
             Sign Out
           </button>
         </div>
@@ -51,8 +58,14 @@ function App() {
         <div></div>
         {/* message input */}
         <form className="flex  flex-col sm:flex-row p-4 border-t-[1px] border-gray-700">
-          <input type="text" placeholder="Type a message..." className="p-2 w-full bg-[#00000040] rounded-lg"/>
-          <button className="mt-4 sm:mt-0 sm:ml-8  bg-blue-500 max-h-12 text-white font-semibold py-2 px-3 rounded">Send</button>
+          <input
+            type="text"
+            placeholder="Type a message..."
+            className="p-2 w-full bg-[#00000040] rounded-lg"
+          />
+          <button className="mt-4 sm:mt-0 sm:ml-8  bg-gray-500 max-h-12 text-white font-semibold py-2 px-3 rounded">
+            Send
+          </button>
         </form>
       </div>
     </div>
