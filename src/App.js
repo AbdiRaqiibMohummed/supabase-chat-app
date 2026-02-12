@@ -37,10 +37,11 @@ const signOut = async () => {
 }
 
 if(!session){
-  
+  <div className="m-10 py-10">
+    <button>sign up here</button>
+  </div>
 }
-
-
+else{
   return (
     <div className="w-full flex h-screen justify-center items-center p-4">
       <div className="border-[1px] border-gray-500 max-w-6xl w-full min-h-[600px] rounded-lg">
@@ -70,6 +71,10 @@ if(!session){
       </div>
     </div>
   );
+}
+
+
+ 
 }
 
 export default App;
