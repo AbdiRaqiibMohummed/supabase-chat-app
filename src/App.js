@@ -1,47 +1,36 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
+import { useSession } from "./hooks/useSession";
 
 function App() {
-  const [session, setSession] = useState([]);
- 
 
-  useEffect(() => {
+  const { session } = useSession()
 
+    useEffect(() => {
+      if (!session) {
+        supabase.auth.signInWithOAuth({
+          provider: "google"
+        })
+      }
+      // Your effect code here
+    }, [session]);
     
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+  if (!session) {
+    return <p>You need to login </p>
+  }
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-// sign in function
+// // sign in function
 const signIn = async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: "google"
-  })
+
 }
 
-// sign out function
+// // sign out function
 
 const signOut = async () => {
-  const { error } = supabase.auth.signOut();
+//   const { error } = supabase.auth.signOut();
 }
 
-if(!session){
-  <div className="m-10 py-10">
-    <button>sign up here</button>
-  </div>
-}
-else{
+
   return (
     <div className="w-full flex h-screen justify-center items-center p-4">
       <div className="border-[1px] border-gray-500 max-w-6xl w-full min-h-[600px] rounded-lg">
@@ -71,7 +60,7 @@ else{
       </div>
     </div>
   );
-}
+
 
 
  
