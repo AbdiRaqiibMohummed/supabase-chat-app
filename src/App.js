@@ -7,6 +7,37 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [usersOnline, setUsersOnline] = useState([]);
+  
+  
+  useEffect(() => {
+    if (!session.user) {
+        setUsersOnline([]);
+        return;
+    }
+
+    const roomOne = supabase.channel("room_one", {
+        config: {
+            presence: {
+                key: session?.user?.id,
+            },
+        },
+    });
+
+    //broadcast
+    roomOne.on("broadcast", { event: "message" }, (payload) => {
+        setMessages((prevMessages) => [...prevMessages, payload.payload]);
+        console.log(messages);
+    });
+
+    //track user presence
+    roomOne.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+            await roomOne.track({
+                id: session?.user.id,
+            });
+        }
+    });
+}, [messages,session?.user]); 
 
   //useSession hook where i use useEffect
 
@@ -18,54 +49,13 @@ function App() {
   };
 
   // channel for supabase to listen to
-  useEffect(() => {
-    if (!session.user) {
-      setUsersOnline([]);
-      return;
-    }
-
-    const roomOne = supabase.channel("room_one", {
-      config: {
-        presence: {
-          key: session?.user?.id,
-        },
-      },
-    });
-
-    //broadcast
-    roomOne.on("broadcast", { event: "message" }, (payload) => {
-      setMessages((prevMessages) => [...prevMessages, payload.payload]);
-      console.log(messages);
-    });
-
-    //track user presence
-    roomOne.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await roomOne.track({
-          id: session?.user.id,
-        });
-      }
-    });
-
-    // handle user presence
-    roomOne.on("presence", { event: "sync" }, () => {
-      const state = roomOne.presenceState();
-      setUsersOnline(Object.keys(state));
-    });
-
-    // unsubscribe from room
-    return () => {
-      roomOne.unsubscribe();
-    };
-
-  }, [session]);
-
 
   // send Message
 
   const sendMessage = async (e) => {
-    e.preventDefault()
-  }
+    e.preventDefault();
+    console.log("sent message")
+  };
 
   // // sign out function
   const signOut = async () => {
@@ -90,7 +80,7 @@ function App() {
               <p className="text-gray-300">
                 Signed in as {session?.user?.user_metadata?.full_name}{" "}
               </p>
-              <p className="text-gray-300 italic text-sm">3 users online</p>
+              <p className="text-gray-300 text-sm pt-2">🟢 3 users online</p>
             </div>
             <button
               onClick={signOut}
@@ -110,7 +100,7 @@ function App() {
               placeholder="Type a message..."
               className="p-2 w-full bg-[#00000040] rounded-lg"
             />
-            <button className="mt-4 sm:mt-0 sm:ml-8  bg-gray-500 max-h-12 text-white font-semibold py-2 px-3 rounded">
+            <button onClick={sendMessage} className="mt-4 sm:mt-0 sm:ml-8  bg-gray-500 max-h-12 text-white font-semibold py-2 px-3 rounded">
               Send
             </button>
           </form>
