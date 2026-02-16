@@ -4,8 +4,6 @@ import { useSession } from "./hooks/useSession";
 import { useRef } from "react";
 
 
-
-
 function App() {
   const channelRef = useRef(null);
   const { session } = useSession();
@@ -13,8 +11,9 @@ function App() {
   const [newMessage, setNewMessage] = useState("");
   const [usersOnline, setUsersOnline] = useState([]);
 
+
   useEffect(() => {
-    if (!session.user) {
+    if (!session?.user) {
       setUsersOnline([]);
       return;
     }
@@ -33,19 +32,28 @@ function App() {
     roomOne.on("broadcast", { event: "message" }, (payload) => {
       setMessages((prevMessages) => [...prevMessages, payload.payload]);
     });
+    
+    // presence of all users
+    roomOne.on("presence", {event: "sync" }, () => {
+      const state = roomOne.presenceState();
+      setUsersOnline(Object.keys(state))
+    })
+
 
     //track user presence
     roomOne.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
         await roomOne.track({
-          id: session?.user.id,
+          id: session?.user?.id,
         });
       }
     });
+
     return () => {
       roomOne.unsubscribe();
-    }
-  }, [session?.user]);
+    };
+    
+  }, [session?.user?.id]);
 
   //useSession hook where i use useEffect
 
@@ -56,23 +64,27 @@ function App() {
     });
   };
 
-  // channel for supabase to listen to
+  // // sign out function
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+  };
 
+  // channel for supabase to listen to
   // send Message
 
   const sendMessage = async (e) => {
     e.preventDefault();
 
-    if(!channelRef.current) return;
+    if (!channelRef.current) return;
 
     const messagePayload = {
       message: newMessage,
       user_name: session?.user?.user_metadata?.email,
-      avatar: session?.user?.user_metadata?.avatar,
+      avatar: session?.user?.user_metadata?.avatar_url,
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prevMessages) => [...prevMessages , messagePayload]);
+    setMessages((prevMessages) => [...prevMessages, messagePayload]);
 
     await channelRef.current.send({
       type: "broadcast",
@@ -80,21 +92,24 @@ function App() {
       payload: {
         message: newMessage,
         user_name: session?.user?.user_metadata?.email,
-        avatar: session?.user?.user_metadata?.avatar,
+        avatar: session?.user?.user_metadata?.avatar_url,
         timestamp: new Date().toISOString(),
       },
     });
 
-    setNewMessage("")
-    
+    setNewMessage("");
+    console.log("User metadata:", session?.user?.user_metadata);
   };
 
-  // // sign out function
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+  const formatTime = (isoString) => {
+    return new Date(isoString).toLocaleDateString("en-uk", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
   };
 
-  if (!session) {
+  if (!session?.user) {
     return (
       <div className="w-full flex h-screen justify-center items-center">
         <button className="p-3 bg-gray-800 rounded-lg" onClick={signIn}>
@@ -112,7 +127,7 @@ function App() {
               <p className="text-gray-300">
                 Signed in as {session?.user?.user_metadata?.full_name}{" "}
               </p>
-              <p className="text-gray-300 text-sm pt-2">🟢 3 users online</p>
+              <p className="text-gray-300 text-sm pt-2">{usersOnline.length} users online</p>
             </div>
             <button
               onClick={signOut}
@@ -124,8 +139,55 @@ function App() {
           {/* main chat */}
           <div className="p-4 flex flex-col overflow-y-auto h-[500px]">
             {messages.map((msg, idx) => (
-              <div>
-                
+              <div
+                key={idx}
+                className={`my-2 w-full flex items-start ${
+                  msg.user_name === session?.user?.user_metadata?.email
+                    ? "justify-end"
+                    : "justify-start"
+                }`}
+              >
+                {/* received message - avatar on left (for OTHER users) */}
+                {msg.user_name !== session?.user?.user_metadata?.email && (
+                  <img
+                    src={msg.avatar}
+                    alt="/"
+                    className="w-10 h-10 rounded-full mr-2"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <div className="flex flex-col w-full">
+                  <div
+                    className={`p-1 max-w[70%] rounded-xl ${
+                      msg?.user_name === session?.user?.user_metadata?.email
+                        ? "bg-gray-700 text-white ml-auto"
+                        : "bg-gray-500 text-white mr-auto"
+                    }`}
+                  >
+                    <p>{msg.message}</p>
+                  </div>
+                  {/* timestamp needed herer */}
+                  <div
+                    className={`
+                    text-xs opacity-75 pt-1 ${
+                      msg?.user_name === session?.user?.email
+                        ? "text-right mr-2"
+                        : "text-left ml-2"
+                    }
+                    `}
+                  >
+                    {formatTime(msg.timestamp)}
+                  </div>
+                </div>
+
+                {msg?.user_name === session?.user?.user_metadata?.email && (
+                <img
+                src={msg.avatar}
+                alt="avatar"
+                className="w-10 h-10 rounded-full ml-2"
+                referrerPolicy="no-referrer"
+              />
+              )}
               </div>
             ))}
           </div>
@@ -142,7 +204,7 @@ function App() {
               className="p-2 w-full bg-[#00000040] rounded-lg"
             />
             <button
-             onClick={sendMessage}
+              onClick={sendMessage}
               type="submit"
               className="mt-4 sm:mt-0 sm:ml-8  bg-gray-500 max-h-12 text-white font-semibold py-2 px-3 rounded"
             >
