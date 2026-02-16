@@ -1,15 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
 import { useSession } from "./hooks/useSession";
-import { useRef } from "react";
+
 
 
 function App() {
-  const channelRef = useRef(null);
+
   const { session } = useSession();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [usersOnline, setUsersOnline] = useState([]);
+
+  const channelRef = useRef(null);
+  const chatContainerRef = useRef(null)
+  const scroll = useRef()
 
 
   useEffect(() => {
@@ -109,6 +113,14 @@ function App() {
     });
   };
 
+  useEffect(() => {
+    setTimeout(() => {
+      if(chatContainerRef.current){
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+      }
+    },[100])
+  },[messages])
+
   if (!session?.user) {
     return (
       <div className="w-full flex h-screen justify-center items-center">
@@ -137,7 +149,7 @@ function App() {
             </button>
           </div>
           {/* main chat */}
-          <div className="p-4 flex flex-col overflow-y-auto h-[500px]">
+          <div ref={chatContainerRef} className="p-4 flex flex-col overflow-y-auto h-[500px]">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
@@ -210,6 +222,9 @@ function App() {
             >
               Send
             </button>
+            <span ref={scroll}>
+
+            </span>
           </form>
         </div>
       </div>
